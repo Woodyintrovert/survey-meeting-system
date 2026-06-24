@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ระบบสำรวจการเข้าร่วมประชุม</title>
+
+<style>
+body {
+  margin: 0;
+  /* ใช้ Font ชุดเดียวกับหน้า survey_action.html */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #eef1fb; 
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 40px 20px;
+  color: #1e293b;
+}
+
+.main-card {
+  background: #fff;
+  max-width: 800px;
+  width: 100%;
+  padding: 40px;
+  border-radius: 12px; /* โค้งมนเท่ากับหน้า Action */
+  box-shadow: 0 8px 24px rgba(0,0,0,.08); /* Shadow แบบเดียวกัน */
+}
+
+h2 { color: #1e293b; margin-top: 0; text-align: center; margin-bottom: 30px; font-weight: 700; }
+h3 { color: #475569; font-size: 16px; margin-top: 25px; font-weight: 600; }
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.form-group { margin-bottom: 15px; }
+
+label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+input {
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  font-size: 15px;
+  color: #334155;
+}
+
+input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+/* ปรับตารางให้เหมือนหน้า Action */
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+th, td { border: 1px solid #e2e8f0; padding: 12px 8px; text-align: center; font-size: 14px; }
+th { background: #f8fafc; font-weight: 600; color: #475569; }
+td.name-cell { text-align: left; font-weight: 500; color: #334155; }
+
+button {
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: none;
+}
+
+/* ปุ่มน้ำเงิน (Primary) */
+.btn-primary { 
+  background: #2563eb; 
+  color: #fff; 
+  width: 100%; 
+  font-size: 16px; 
+  margin-top: 20px; 
+}
+.btn-primary:hover { background: #1d4ed8; }
+
+/* ปุ่มน้ำเงิน (Add) */
+.btn-add { background: #2563eb; color: #fff; height: 42px; }
+/* เพิ่มส่วนนี้เพื่อให้เวลาเอาเมาส์ไปชี้แล้วสีเปลี่ยนเหมือนปุ่มบันทึก */
+.btn-add:hover {
+  background: #1d4ed8;
+}
+
+/* ปุ่มกากบาทสีแดง */
+button.delete { 
+  background: #ef4444; 
+  color: white; 
+  padding: 6px 10px;
+  font-size: 12px;
+}
+button.delete:hover { background: #dc2626; }
+
+/* สไตล์ปุ่ม Copy Link */
+.btn-copy {
+  background: #2563eb;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 12px; /* เว้นระยะห่างจากตัวลิงก์ */
+  transition: background 0.2s;
+  display: inline-block;
+}
+
+.btn-copy:hover {
+  background: #1d4ed8;
+}
+
+/* ข้อความแจ้งเตือนตอนคัดลอกสำเร็จ */
+#copyMsg {
+  color: #16a34a;
+  font-size: 13px;
+  margin-left: 10px;
+  display: none;
+}
+
+.footer { margin-top: 40px; text-align: center; color: #94a3b8; font-size: 12px; }
+</style>
+</head>
+
+<body>
+<div class="main-card">
+  <h2>📋 สร้างแบบสำรวจการประชุม</h2>
+
+  <div class="form-group">
+    <label>ชื่อการประชุม</label>
+    <input id="meetingName" list="meetingList" placeholder="พิมพ์ชื่อหัวข้อการประชุม...">
+    <datalist id="meetingList"></datalist>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label>วัน / เดือน / ปี</label>
+      <input type="date" id="meetingDate">
+    </div>
+    <div class="form-group">
+      <label>เวลา</label>
+      <input id="meetingTime" placeholder="เช่น 09.00 - 12.00 น.">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label>สถานที่</label>
+      <input id="meetingPlace" placeholder="ระบุห้องประชุมหรือลิงก์">
+    </div>
+    <div class="form-group">
+      <label>ผู้สำรวจ</label>
+      <input id="surveyBy" list="members" placeholder="ระบุชื่อผู้บันทึก">
+    </div>
+  </div>
+
+  <hr style="border: 0; border-top: 1px dashed #e2e8f0; margin: 20px 0;">
+
+  <div style="display:flex; justify-content: space-between; align-items: center;">
+    <h3>รายชื่อกรรมการ</h3>
+    <button class="btn-secondary" onclick="loadPreviousMembers()">+ ดึงรายชื่อชุดเดิม</button>
+  </div>
+
+  <div style="display:flex; gap:10px; margin-top:10px;">
+    <input id="memberInput" list="members" placeholder="พิมพ์ชื่อกรรมการแล้วกดเพิ่ม">
+    <button class="btn-add" onclick="addMember()">เพิ่ม</button>
+  </div>
+  <datalist id="members"></datalist>
+
+  <table>
+    <thead>
+      <tr>
+        <th>รายชื่อกรรมการ</th>
+        <th width="50" style="text-align:center;">delete</th>
+      </tr>
+    </thead>
+    <tbody id="memberTable"></tbody>
+  </table>
+
+  <button class="btn-primary" onclick="saveMeeting()">บันทึกข้อมูล และ สร้างลิงก์สำรวจ</button>
+  <p id="saveResult" style="text-align:center; font-weight:bold; color:#16a34a;"></p>
+
+  <div class="footer">
+    <hr style="border: 0; border-top: 1px solid #cbd5e1; margin-bottom: 20px; width: 60%; margin-left: auto; margin-right: auto;">
+    <b>Faculty of Pharmacy - Silpakorn University, Thailand</b><br>
+    Created by Sarawut Inmee | ext. 208285
+  </div>
+</div>
+<script>
+let members = [];
+
+/* ===== โหลด Autocomplete ===== */
+google.script.run.withSuccessHandler(list => {
+  const dl = document.getElementById("members");
+  list.forEach(n => {
+    const o = document.createElement("option");
+    o.value = n;
+    dl.appendChild(o);
+  });
+}).getCommitteeList();
+
+google.script.run.withSuccessHandler(list => {
+  const dl = document.getElementById("meetingList");
+  list.forEach(n => {
+    const o = document.createElement("option");
+    o.value = n;
+    dl.appendChild(o);
+  });
+}).getMeetingNameList();
+
+// โหลดชื่อการประชุม (Autocomplete)
+google.script.run.withSuccessHandler(list => {
+  const dl = document.getElementById("meetingList");
+  dl.innerHTML = "";
+
+  list.forEach(name => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    dl.appendChild(opt);
+  });
+}).getMeetingNameList();
+
+/* ===== เพิ่ม / ลบ รายชื่อ ===== */
+function addMember() {
+  const name = memberInput.value.trim();
+  if (!name || members.includes(name)) return;
+  members.push(name);
+  memberInput.value = "";
+  renderMembers();
+}
+
+function removeMember(i) {
+  members.splice(i, 1);
+  renderMembers();
+}
+
+function renderMembers() {
+  const memberTable = document.getElementById("memberTable");
+  memberTable.innerHTML = "";
+  members.forEach((n, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="name-cell">
+        <strong>${i + 1}.</strong> ${n}
+      </td>
+      <td>
+        <button type="button" class="delete" onclick="removeMember(${i})">✕</button>
+      </td>
+    `;
+    memberTable.appendChild(tr);
+  });
+}
+
+/* ===== ดึงรายชื่อชุดเดิม ===== */
+function loadPreviousMembers() {
+  const name = meetingName.value.trim();
+  if (!name) {
+    alert("กรุณากรอกชื่อการประชุมก่อน");
+    return;
+  }
+
+  google.script.run.withSuccessHandler(list => {
+    if (!list.length) {
+      alert("ไม่พบรายชื่อกรรมการ");
+      return;
+    }
+    members = list;
+    renderMembers();
+  }).getMembersByMeetingName(name);
+}
+
+/* ===== บันทึกการประชุม (ปรับปรุงเพื่อเพิ่มปุ่ม Copy) ===== */
+function saveMeeting() {
+  if (!meetingName.value || !meetingDate.value || !members.length) {
+    alert("กรอกข้อมูลไม่ครบ");
+    return;
+  }
+
+  const data = {
+    meetingName: meetingName.value,
+    meetingDate: meetingDate.value,
+    meetingTime: meetingTime.value,
+    meetingPlace: meetingPlace.value,
+    surveyBy: surveyBy.value,
+    members
+  };
+
+  const btnSave = document.querySelector(".btn-primary");
+  btnSave.innerText = "กำลังสร้างลิงก์...";
+  btnSave.disabled = true;
+
+  google.script.run.withSuccessHandler(link => {
+    btnSave.innerText = "บันทึกข้อมูล และ สร้างลิงก์สำรวจ";
+    btnSave.disabled = false;
+
+    // แก้ไขตรงนี้: โชว์ลิงก์เดิม + เพิ่มปุ่ม Copy และข้อความแจ้งเตือน
+    saveResult.innerHTML = `
+      <div style="margin-top:20px; padding:15px; border: 1px solid #16a34a; border-radius: 8px; background: #f0fdf4;">
+        ✅ สร้างแบบสำรวจสำเร็จ!<br>
+        <div style="word-break: break-all; margin: 10px 0;">
+          <a href="${link}" target="_blank" style="color: #1d4ed8;">${link}</a>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <button type="button" class="btn-copy" onclick="copyTextToClipboard('${link}')">Copy Link</button>
+          <span id="copyMsg">คัดลอกแล้ว!</span>
+        </div>
+      </div>
+    `;
+  }).createMeeting(data);
+}
+
+function loadMeetingList() {
+  google.script.run.withSuccessHandler(list => {
+    const dl = document.getElementById("meetingList");
+    dl.innerHTML = ""; // ⭐ สำคัญมาก ป้องกันซ้ำ
+
+    list.forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      dl.appendChild(opt);
+    });
+  }).getMeetingNameList();
+}
+
+function copyTextToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const msg = document.getElementById("copyMsg");
+    msg.style.display = "inline";
+    // แสดงข้อความ "คัดลอกแล้ว" 3 วินาทีแล้วค่อยซ่อน
+    setTimeout(() => { msg.style.display = "none"; }, 3000);
+  }).catch(err => {
+    console.error('Copy failed', err);
+    alert("ไม่สามารถคัดลอกอัตโนมัติได้ กรุณาคัดลอกด้วยตัวเอง");
+  });
+}
+</script>
+
+</body>
+</html>
