@@ -53,7 +53,15 @@ Google Sheets is used as the database for:
 
 If you use this software in academic work, please cite:
 
-Inmee, S. (2026). Survey Meeting System (Version 1.0) [Computer software]. Faculty of Pharmacy, Silpakorn University. Available at: https://github.com/USERNAME/survey-meeting-system
+Inmee, S. (2026).
+
+Survey Meeting System (Version 1.0.0)
+[Computer software].
+
+Faculty of Pharmacy,
+Silpakorn University.
+
+DOI: 10.5281/zenodo.20833237
 
 ---
 
