@@ -5,11 +5,11 @@ type: software
 
 authors:
 
-* family-names: Inmee
+- family-names: Inmee
   given-names: Sarawut
   affiliation: Faculty of Pharmacy, Silpakorn University
 
-version: 1.0.0
+version: 1.0.1
 
 date-released: 2026-06-24
 
