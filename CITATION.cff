@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: Survey Meeting System
+message: "If you use this software, please cite it as follows."
+type: software
+
+authors:
+
+* family-names: Inmee
+  given-names: Sarawut
+  affiliation: Faculty of Pharmacy, Silpakorn University
+
+version: 1.0.0
+
+date-released: 2026-06-24
+
+license: MIT
