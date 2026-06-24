@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="th">
+  <input type="hidden" id="meetingId" value="<?= mid ?>">
+<head>
+  <meta charset="utf-8">
+  <title>ระบบสำรวจการเข้าร่วมประชุม</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+/* จัด Layout ส่วนหัวให้แบ่งเป็น 2 ฝั่ง */
+    .header-container {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr; /* ฝั่งซ้ายกว้างกว่าเล็กน้อย */
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    /* กล่องสรุปผลการสำรวจ */
+    .summary-box {
+      background: #f1f5f9; /* สีพื้นหลังเทาอ่อนตามภาพ */
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #e2e8f0;
+    }
+    .summary-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #1e293b;
+    }
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 15px;
+      font-weight: 500;
+    }
+    .summary-label { color: #475569; }
+    .summary-count { font-weight: bold; color: #1e293b; }
+    
+    /* สีเฉพาะตามสถานะ */
+    .text-onsite { color: #2563eb; }
+    .text-online { color: #2563eb; } /* หรือสีครามตามภาพ */
+    .text-leave { color: #475569; }
+    .text-pending { color: #ef4444; } /* สีแดงสำหรับ "รอการสำรวจ" */
+
+    /* ปรับปรุงให้รองรับมือถือ */
+    @media (max-width: 768px) {
+      .header-container { grid-template-columns: 1fr; }
+    }
+
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background: #eef1fb; margin: 0; padding: 24px; }
+    .card { background: #fff; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+    h2 { margin: 0 0 12px; color: #1e293b; }
+    .info-grid { display: grid; grid-template-columns: 160px 1fr; row-gap: 8px; column-gap: 12px; font-size: 15px; }
+    .label-text { font-weight: bold; color: #64748b; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #e2e8f0; padding: 12px 8px; text-align: center; font-size: 14px; }
+    th { background: #f8fafc; font-weight: 600; color: #475569; }
+    td.name { text-align: left; font-weight: 500; color: #334155; }
+    input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
+    input.note { width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
+    button.confirm { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; transition: all 0.2s; min-width: 80px; }
+    button.wait { background: #2563eb; color: #fff; }
+    button.wait:hover { background: #1d4ed8; }
+    button.done { background: #16a34a; color: #fff; }
+    .loading { text-align: center; padding: 60px; font-size: 18px; color: #64748b; }
+    
+    /* ปรับกล่องเพิ่มรายชื่อให้ดู Compact และสมดุล */
+.add-member-box {
+  display: flex;
+  gap: 10px;           /* ระยะห่างระหว่างช่องกรอกกับปุ่ม */
+  max-width: 750px;    /* จำกัดความกว้างไม่ให้แผ่กว้างเกินไปจนดูไม่สวย */
+  margin-top: 10px;
+}
+
+#memberInput {
+  flex: 1;             /* ให้ช่องกรอกขยายพื้นที่ในสัดส่วนที่เหมาะสม */
+  padding: 10px 15px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+#btnAddMember {
+  width: auto;         /* ปุ่มกว้างตามขนาดตัวอักษร */
+  padding: 0 25px;     /* เพิ่มความกว้างข้างในปุ่มให้กดง่าย */
+  background: #2563eb; /* สีน้ำเงินเดียวกับปุ่มยืนยัน */
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap; /* ป้องกันตัวอักษร "เพิ่ม" ตกบรรทัด */
+}
+/* ปรับแต่งปุ่มกากบาทสีแดงให้เหมือนหน้า index.html */
+    button.delete { 
+      background: #ef4444; /* สีแดงหลัก */
+      color: white; 
+      padding: 6px 12px;   /* ปรับขนาดให้กดง่าย */
+      font-size: 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    /* จุดเดิมที่คุณมีอยู่แล้ว */
+    button.delete:hover { background: #dc2626; }
+    
+    /* ส่วนท้ายของหน้า (Footer) */
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #cbd5e1; /* เส้นคั่นบางๆ สีเทา */
+      text-align: center;
+      color: #94a3b8; /* สีเทาอ่อนเพื่อให้กลมกลืน */
+      font-size: 12px; /* ขนาดเล็กกว่าปกติ */
+      line-height: 1.6;
+    }
+    .footer b {
+      color: #64748b; /* สีเน้นสำหรับชื่อหน่วยงาน */
+    }
+
+ /* บังคับหน้าตา Checkbox เมื่อถูก Disabled */
+/* คลาสพิเศษสำหรับล็อค Checkbox ไม่ให้คลิก แต่หน้าตายังเหมือนเดิม */
+.locked-checkbox {
+  pointer-events: none; /* ห้ามคลิกห้ามยุ่ง */
+  cursor: not-allowed;
+  opacity: 1 !important; /* บังคับความเข้มเต็มร้อย */
+  filter: grayscale(0) !important; /* ห้ามเป็นสีเทา */
+}
+
+.star-container { text-align: center; margin-top: 0; padding: 5px; border-top: none; }
+  .star-badge {
+    position: relative; display: inline-block; width: 60px; height: 60px;
+    background: gold; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    cursor: pointer; transition: transform 0.2s;
+  }
+  .star-badge:hover { transform: scale(1.1); }
+  .star-badge span {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-weight: bold; font-size: 1.2rem; color: #333;
+  }
+  #feedbackBox { display: none; margin-top: 10px; }
+  .feedback-input { border: 1px solid #ddd; padding: 5px; border-radius: 4px; width: 150px; }
+</style>
+  </style>
+</head>
+<body>
+<datalist id="members"></datalist>
+  <div id="app" class="loading">
+    <div>กำลังโหลดข้อมูลโปรดรอสักครู่...</div>
+  </div>
+
+<script>
+// ดึงค่า mid ไว้เป็นส่วนกลางของทั้งหน้าหน้าเว็บ
+const urlParams = new URLSearchParams(window.location.search);
+ const mid = urlParams.get('mid');
+
+const midFromUrl = "<?= params.mid || '' ?>";
+let currentMeetingName = ""; 
+
+document.addEventListener("DOMContentLoaded", function () {
+  if (!midFromUrl) {
+    showError("❌ ไม่พบรหัสการประชุม");
+    return;
+  }
+  loadMeetingData();
+  setupMemberDatalist(); // เพิ่มการดึงรายชื่อกรรมการหลัก
+});
+
+/**
+ * ดึงรายชื่อกรรมการจาก ชีต1 มาทำ Auto-complete
+ */
+function setupMemberDatalist() {
+  google.script.run
+    .withSuccessHandler(list => {
+      console.log("รายชื่อที่ดึงมาได้:", list);
+      
+      // *** ตรวจสอบบรรทัดนี้: ต้องเป็น "members" เท่านั้น ***
+      const datalist = document.getElementById("members"); 
+      
+      if (datalist && list) {
+        // ล้างค่าเก่าและฉีดค่าใหม่เข้าไป
+        datalist.innerHTML = list.map(name => `<option value="${name}">`).join("");
+        console.log("ฉีดรายชื่อลงใน <datalist id='members'> เรียบร้อยแล้ว");
+      }
+    })
+    .getCommitteeList(); // ตรวจสอบชื่อฟังก์ชันให้ตรงกับหน้า index.html
+}
+
+function loadMeetingData() {
+  google.script.run
+    .withSuccessHandler(renderPage)
+    .withFailureHandler(err => showError("❌ เกิดข้อผิดพลาด: " + err))
+    .getMeetingById(midFromUrl);
+}
+
+/**
+ * ฟังก์ชันสร้างแถวตาราง (เรียกใช้ทั้งตอนโหลดและตอนเพิ่มใหม่)
+ */
+function createRow(memberName, index, savedData = null, isClosedSystem = false) {
+  const tr = document.createElement("tr");
+  // เพิ่มปุ่มลบ (class="delete") ไว้ในคอลัมน์สุดท้าย
+  tr.innerHTML = `
+    <td class="name"><span class="row-index"><strong>${index}.</strong></span> ${memberName}</td>
+    <td><input type="checkbox" class="chk-onsite" ${savedData?.onsite ? 'checked' : ''}></td>
+    <td><input type="checkbox" class="chk-online" ${savedData?.online ? 'checked' : ''}></td>
+    <td><input type="checkbox" class="chk-leave" ${savedData?.leave ? 'checked' : ''}></td>
+    <td><input type="checkbox" class="chk-food" ${savedData?.food ? 'checked' : ''}></td>
+    <td><input class="note" type="text" placeholder="..." value="${savedData?.note || ''}"></td>
+    <td>
+      <div style="display:flex; align-items:center; justify-content:center; gap:5px;">
+        <button class="confirm ${savedData ? 'done' : 'wait'}">${savedData ? '&#10004;' : 'ยืนยัน'}</button>
+        <button class="delete" title="ลบรายชื่อนี้">✕</button>
+      </div>
+    </td>
+  `;
+
+  const btn = tr.querySelector("button.confirm");
+  const btnDelete = tr.querySelector(".delete");
+  const chkOnsite = tr.querySelector(".chk-onsite");
+  const chkOnline = tr.querySelector(".chk-online");
+  const chkLeave = tr.querySelector(".chk-leave");
+  const chkFood = tr.querySelector(".chk-food");
+  const txtNote = tr.querySelector(".note");
+
+  const exclusiveGroup = [chkOnsite, chkOnline, chkLeave];
+
+// 🔥 จัดการปิดกั้น (Disable) หากระบบปิด
+if (isClosedSystem) {
+    // 1. จัดการกลุ่ม Input
+    tr.querySelectorAll('input').forEach(inp => {
+      if (inp.type === "checkbox") {
+        // แทนที่จะสั่ง disabled เราใช้การล็อคด้วย CSS Class แทน
+        inp.classList.add("locked-checkbox");
+        
+        // กันเหนียวสำหรับบาง Browser: ถ้าใครพยายามกดผ่านคีย์บอร์ดให้ยกเลิก
+        inp.onclick = function(e) { e.preventDefault(); return false; };
+      } else {
+        // ส่วนช่อง Note (Text) ยังใช้ disabled ได้ตามปกติเพื่อให้ดูต่างออกไป
+        inp.disabled = true;
+        inp.style.opacity = "0.6";
+      }
+    });
+
+    // 2. จัดการปุ่มยืนยัน (ให้จางลงเหมือนเดิม)
+    if(btn) { 
+      btn.disabled = true; 
+      btn.style.opacity = "0.3"; 
+      btn.style.cursor = "not-allowed"; 
+    }
+
+    // 3. ซ่อนปุ่มลบ
+    if(btnDelete) { 
+      btnDelete.style.display = "none"; 
+    }
+  }
+
+// Logic ปุ่มลบ
+  btnDelete.addEventListener("click", () => {
+    if (confirm(`คุณต้องการลบรายชื่อ "${memberName}" ใช่หรือไม่?`)) {
+      btnDelete.disabled = true;
+      btnDelete.textContent = "...";
+      
+      google.script.run
+        .withSuccessHandler(() => {
+          tr.remove(); // ลบแถวออกจากหน้าจอ
+          reIndexRows(); // จัดลำดับเลขใหม่
+        })
+        .withFailureHandler(err => {
+          alert("ลบไม่สำเร็จ: " + err);
+          btnDelete.disabled = false;
+          btnDelete.textContent = "x";
+        })
+        .removeMemberFromMeeting(midFromUrl, memberName);
+    }
+  });
+if (savedData) {
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    btn.style.cursor = "pointer";
+  }
+  // ตั้งค่าปุ่มเริ่มต้น (Disabled)
+  btn.disabled = true;
+  btn.style.opacity = "0.5";
+  btn.style.cursor = "not-allowed";
+
+  // Logic: Mutual Exclusion (เลือกได้ข้อเดียว)
+  exclusiveGroup.forEach(checkbox => {
+    checkbox.addEventListener("change", function() {
+      if (this.checked) {
+        exclusiveGroup.forEach(other => { if (other !== this) other.checked = false; });
+      }
+      validateAndReset(btn, exclusiveGroup);
+    });
+  });
+
+  // Logic: Reset เมื่อเปลี่ยนข้อมูล อาหาร หรือ หมายเหตุ
+  [chkFood, txtNote].forEach(el => {
+    el.addEventListener("input", () => validateAndReset(btn, exclusiveGroup));
+    updateSummary();
+  });
+
+  // Logic: บันทึกลงชีต 2
+  btn.addEventListener("click", () => {
+    submitRow(btn, tr, memberName);
+  });
+
+  return tr;
+}
+
+/**
+ * ฟังก์ชันจัดการปุ่ม [ส่งรหัส / เปิด-ปิดระบบ]
+ */
+function handleSystemToggle() {
+  // --- เปลี่ยนมาอ่านค่าจาก Hidden Input แทน URL ---
+  const currentMid = document.getElementById('meetingId').value;
+  // --------------------------------------------
+
+  console.log("Current MID from Hidden Input:", currentMid);
+
+  if (!currentMid) {
+    alert("ระบบไม่พบรหัสการประชุม (mid) ใน URL โปรดตรวจสอบลิงก์อีกครั้ง");
+    return;
+  }
+
+  const btn = document.getElementById('btnAction');
+  const codeInput = document.getElementById('adminPasscode');
+  const statusLabel = document.getElementById('statusLabel').innerText;
+
+  // 1. กรณีส่งรหัสเข้าอีเมล (ยังไม่ได้กรอกรหัส)
+  if (!codeInput.value) {
+    btn.disabled = true;
+    btn.innerText = "กำลังส่ง...";
+    
+    google.script.run
+      .withSuccessHandler(msg => {
+        alert(msg);
+        btn.disabled = false;
+        btn.innerText = statusLabel.includes("ปิด") ? "ยืนยัน/ส่งรหัส" : "ยืนยัน/ส่งรหัส";
+      })
+      .withFailureHandler(err => {
+        alert("เกิดข้อผิดพลาด: " + err.message);
+        btn.disabled = false;
+        btn.innerText = "ส่งรหัสอีกครั้ง";
+      })
+      .sendAdminPasscode(currentMid); // ใช้ค่าที่ดึงมาสดๆ
+    return;
+  }
+
+  // 2. กรณีสลับสถานะ (กรอกรหัสแล้ว)
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) {
+        btn.innerText = "สำเร็จ! กำลังรีโหลด...";
+        setTimeout(() => { window.location.href = window.location.href; }, 800);
+      } else {
+        alert("รหัสผ่านไม่ถูกต้อง");
+        btn.disabled = false;
+        btn.innerText = statusLabel.includes("ปิด") ? "ยืนยัน/ส่งรหัส" : "ยืนยัน/ส่งรหัส";
+      }
+    })
+    .verifyAndToggleSystem(currentMid, codeInput.value); // ใช้ค่าที่ดึงมาสดๆ
+}
+
+function renderPage(data) {
+  const app = document.getElementById("app");
+  if (!data) { showError("❌ ไม่พบข้อมูลการประชุม"); return; }
+  currentMeetingName = data.meetingName;
+  app.classList.remove("loading");
+  
+  // เช็คสถานะจากคอลัมน์ I
+  const isClosed = (data.status_system === "CLOSED");
+
+  app.innerHTML = `
+    <div class="header-container">
+      <div class="card" style="margin-bottom: 0;">
+        <h2>แบบสำรวจการเข้าร่วมประชุม</h2>
+        <div class="info-grid">
+          <div class="label-text">ชื่อการประชุม</div><div>${data.meetingName}</div>
+          <div class="label-text">วัน / เดือน / ปี</div><div>${formatDate(data.meetingDate)}</div>
+          <div class="label-text">เวลา</div><div>${data.meetingTime || "-"}</div>
+          <div class="label-text">สถานที่</div><div>${data.meetingPlace || "-"}</div>
+          <div class="label-text">ผู้สำรวจ</div><div>${data.surveyBy || "-"}</div>
+        </div>
+      </div>
+
+      <div class="summary-box">
+        <div class="summary-title">สรุปผลการสำรวจ</div>
+        <div class="summary-item"><span class="summary-label text-onsite">Onsite</span> <span><span id="sumOnsite" class="summary-count">0</span> คน</span></div>
+        <div class="summary-item"><span class="summary-label text-online">Online</span> <span><span id="sumOnline" class="summary-count">0</span> คน</span></div>
+        <div class="summary-item"><span class="summary-label text-leave">ลา</span> <span><span id="sumLeave" class="summary-count">0</span> คน</span></div>
+        <div class="summary-item"><span class="summary-label">อาหารรับรอง</span> <span><span id="sumFood" class="summary-count">0</span> คน</span></div>
+        <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 10px 0;">
+        <div class="summary-item"><span class="summary-label text-pending">รอการสำรวจ</span> <span><span id="sumPending" class="summary-count">0</span> คน</span></div>
+      </div>
+    </div>
+
+  <div class="header-container">
+  
+  <div class="card">
+  <div class="label-text" style="margin-bottom:8px;">เพิ่มรายชื่อกรรมการ (หากมี)</div>
+  <div class="add-member-box">
+    <input type="text" id="memberInput" list="members" placeholder="เพิ่มชื่อใหม่...">
+    <button id="btnAddMember" class="confirm wait" onclick="addMember()">เพิ่ม</button>
+  </div>
+  </div>
+
+  <div class="card" id="adminControlBox" style="margin-bottom: 8px; display: flex; flex-direction: row; justify-content: center; align-items: center; border: 2px dashed #cbd5e1; background: #fafafa; padding: 12px 15px; gap: 15px;">
+  
+  <div style="flex: 1.2; display: flex; flex-direction: column; justify-content: center; align-items: center; border-right: 1px solid #e2e8f0; padding-right: 15px;">
+    <div id="statusLabel" style="font-weight: bold; color: #16a34a; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; font-size: 0.9rem;">
+      <span style="font-size: 16px;">🟢</span> ระบบกำลังเปิดรับข้อมูลสำรวจ
+    </div>
+
+    <div id="passcodeArea" style="display: none; gap: 5px; margin-bottom: 5px;">
+      <input type="text" id="adminPasscode" maxlength="4" inputmode="numeric" 
+             oninput="this.value = this.value.replace(/[^0-9]/g, '');" 
+             placeholder="รหัส 4 หลัก" style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
+      <button id="btnAction" onclick="handleSystemToggle()" class="confirm wait" style="min-width: 60px; padding: 4px 8px; font-size: 0.8rem; cursor: pointer;">ส่งรหัส</button>
+    </div>
+
+    <div style="margin-top: 2px;">
+      <small style="color: #94a3b8; cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.75rem;" onclick="togglePasscodeField()">
+        <span id="lockIcon">🔒</span> <u>เฉพาะผู้สร้างการประชุม</u>
+      </small>
+    </div>
+  </div>
+
+  <div class="star-container" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-top: none; padding: 0; margin-top: 0;">
+  
+  <div class="star-badge" onclick="toggleFeedback()" style="cursor: pointer; width: 45px; height: 45px; background: gold; display: flex; align-items: center; justify-content: center; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); margin-bottom: 5px;">
+    <span style="font-weight: bold; color: #333; font-size: 1rem;">5</span>
+  </div>
+
+  <div id="feedbackBox" style="display: none; margin-top: 5px; margin-bottom: 5px;">
+    <div style="display: flex; flex-direction: row; align-items: center; gap: 4px;">
+      <input type="text" id="commentText" placeholder="ความเห็น" 
+             style="border: 1px solid #cbd5e1; padding: 4px; border-radius: 4px; width: 120px; font-size: 0.75rem; text-align: center;">
+      <button onclick="submitFeedback()" 
+              style="width: 35px; background: #2563eb; color: white; border: none; padding: 4px; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">
+        ส่ง
+      </button>
+    </div>
+  </div>
+
+  <div style="margin-top: 2px;">
+    <small onclick="toggleFeedback()" style="cursor: pointer; color: #6366f1; font-weight: 500; font-size: 0.7rem; white-space: nowrap;">
+      ⭐ <u>ให้คะแนนความพึงพอใจ</u>
+    </small>
+  </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+    <div class="card" style="overflow-x: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>รายชื่อกรรมการ</th>
+            <th style="width:60px;">Onsite</th>
+            <th style="width:60px;">Online</th>
+            <th style="width:60px;">ลา</th>
+            <th style="width:60px;">อาหาร</th>
+            <th>หมายเหตุ</th>
+            <th style="width:120px;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="surveyBody"></tbody>
+      </table>
+    </div>
+    <div class="footer">
+      <b>Faculty of Pharmacy - Silpakorn University, Thailand</b><br>
+      Created by Sarawut Inmee | ext. 208285
+    </div>
+  `;
+
+    const statusLabel = document.getElementById('statusLabel');
+  const btnAction = document.getElementById('btnAction');
+
+  if (isClosed) {
+    statusLabel.innerHTML = `<span style="color: #ef4444;"><span style="font-size: 18px;">🔴</span> ระบบปิดรับข้อมูลสำรวจ</span>`;
+    btnAction.innerText = "ยืนยัน/ส่งรหัส"; // ถ้าปิดอยู่ ปุ่มต้องให้กดเปิด
+  } else {
+    statusLabel.innerHTML = `<span style="color: #16a34a;"><span style="font-size: 18px;">🟢</span> ระบบกำลังเปิดรับข้อมูลสำรวจ</span>`;
+    btnAction.innerText = "ยืนยัน/ส่งรหัส"; // ถ้าเปิดอยู่ ปุ่มเริ่มจากส่งรหัส
+  }
+
+  // วนลูปสร้างแถวตาราง (แก้ไขให้ปีกกาถูกต้อง)
+  const tbody = document.getElementById("surveyBody");
+  tbody.innerHTML = "";
+  
+  data.members.forEach((member, i) => {
+    const name = typeof member === 'string' ? member : member.name;
+    const saved = typeof member === 'string' ? null : member;
+    
+    // ส่ง isClosed เข้าไปในฟังก์ชัน createRow ด้วย
+    const row = createRow(name, i + 1, saved, isClosed); 
+    tbody.appendChild(row);
+  });
+
+  // ล็อคปุ่ม "เพิ่มรายชื่อ" ด้านบนถ้าสถานะเป็น CLOSED
+  const addBtn = document.getElementById('btnAddMember');
+  if (addBtn && isClosed) {
+    addBtn.disabled = true;
+    addBtn.style.opacity = "0.5";
+    addBtn.style.cursor = "not-allowed";
+  }
+
+  updateSummary();
+}
+
+function updateSummary() {
+  const rows = document.querySelectorAll("#surveyBody tr");
+  let total = rows.length;
+  let onsite = 0, online = 0, leave = 0, food = 0;
+
+  rows.forEach(row => {
+    const btnConfirm = row.querySelector(".confirm");
+    // 🔥 หัวใจสำคัญ: นับเฉพาะแถวที่ปุ่มมี class 'done' (แปลว่ากดยืนยันสำเร็จแล้ว)
+    if (btnConfirm && btnConfirm.classList.contains("done")) {
+      if (row.querySelector(".chk-onsite").checked) onsite++;
+      if (row.querySelector(".chk-online").checked) online++;
+      if (row.querySelector(".chk-leave").checked) leave++;
+      if (row.querySelector(".chk-food").checked) food++;
+    }
+  });
+
+  const responded = onsite + online + leave;
+  const pending = total - responded; // รอการสำรวจ = ทั้งหมด - คนที่ยืนยันแล้ว
+
+  // อัปเดตตัวเลขลงหน้าจอ
+  document.getElementById("sumOnsite").textContent = onsite;
+  document.getElementById("sumOnline").textContent = online;
+  document.getElementById("sumLeave").textContent = leave;
+  document.getElementById("sumFood").textContent = food;
+  document.getElementById("sumPending").textContent = pending;
+}
+
+/**
+ * ฟังก์ชันสำหรับปุ่ม "เพิ่ม" (บันทึกเข้าชีต 3)
+ */
+function addMember() {
+  const nameInput = document.getElementById("memberInput");
+  const name = nameInput.value.trim();
+
+  if (!name) return;
+
+  // เปลี่ยนสถานะปุ่มให้ดูว่ากำลังทำงาน
+  const btn = document.getElementById("btnAddMember");
+  btn.innerText = "กำลังเพิ่ม...";
+  btn.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(() => {
+      // 1. ล้างข้อมูลในช่องกรอกให้ว่างทันที
+      nameInput.value = ""; 
+      
+      // 2. คืนค่าสถานะปุ่ม
+      btn.innerText = "เพิ่ม";
+      btn.disabled = false;
+      
+      // 3. โหลดข้อมูลใหม่เพื่อแสดงรายชื่อที่เพิ่มเข้าไปในตาราง
+      loadMeetingData(); 
+      
+      console.log("เพิ่มรายชื่อและล้างค่าเรียบร้อย");
+    })
+    .withFailureHandler(err => {
+      alert("เกิดข้อผิดพลาด: " + err);
+      btn.innerText = "เพิ่ม";
+      btn.disabled = false;
+    })
+    .addMemberToMeeting(midFromUrl, name);
+}
+
+function validateAndReset(targetBtn, group) {
+  const isAnySelected = group.some(chk => chk.checked);
+
+  if (isAnySelected) {
+    targetBtn.disabled = false;
+    targetBtn.textContent = "ยืนยัน";
+    targetBtn.className = "confirm wait";
+    targetBtn.style.opacity = "1";
+    targetBtn.style.cursor = "pointer";
+  } else {
+    targetBtn.disabled = true;
+    targetBtn.textContent = "ยืนยัน";
+    targetBtn.className = "confirm wait";
+    targetBtn.style.opacity = "0.5";
+    targetBtn.style.cursor = "not-allowed";
+  }
+}
+
+function submitRow(btn, row, memberName) {
+  const payload = {
+    meetingId: midFromUrl,
+    meetingName: currentMeetingName,
+    memberName: memberName,
+    onsite: row.querySelector(".chk-onsite").checked,
+    online: row.querySelector(".chk-online").checked,
+    leave: row.querySelector(".chk-leave").checked,
+    food: row.querySelector(".chk-food").checked,
+    note: row.querySelector(".note").value
+  };
+
+  btn.textContent = "..."; 
+  btn.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(() => {
+      btn.innerHTML = "&#10004;"; 
+      btn.className = "confirm done";
+      btn.disabled = false; 
+      updateSummary(); // <--- 🔥 เพิ่มตรงนี้! พอยืนยันปุ๊บ ยอดสรุปข้างบนจะเด้งทันที
+    })
+    .withFailureHandler(err => {
+      alert("บันทึกล้มเหลว: " + err);
+      btn.textContent = "ยืนยัน";
+      btn.disabled = false;
+    })
+    .saveSurveyResult(payload);
+}
+
+function showError(msg) {
+  const app = document.getElementById("app");
+  app.classList.remove("loading");
+  app.innerHTML = `<div class="card" style="text-align:center; color:red;"><h3>${msg}</h3></div>`;
+}
+
+/**
+ * แปลงรูปแบบวันที่เป็นภาษาไทยเต็มรูปแบบ
+ * จาก "20 มกราคม 2569" เป็น "วันอังคารที่ 20 มกราคม 2569"
+ */
+function formatDate(dateStr) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  
+  // ดึงชื่อวัน (เช่น วันอังคาร)
+  const weekday = d.toLocaleDateString("th-TH", { weekday: 'long' });
+  // ดึงวันที่ (เช่น 20)
+  const day = d.toLocaleDateString("th-TH", { day: 'numeric' });
+  // ดึงเดือน (เช่น มกราคม)
+  const month = d.toLocaleDateString("th-TH", { month: 'long' });
+  // ดึงปี พ.ศ. (เช่น 2569)
+  const year = d.toLocaleDateString("th-TH", { year: 'numeric' });
+
+  // นำมาต่อกันให้ได้รูปแบบ: วันอังคารที่ 20 มกราคม 2569
+  return `${weekday}ที่ ${day} ${month} ${year}`;
+}
+
+function reIndexRows() {
+  const rows = document.querySelectorAll("#surveyBody tr");
+  rows.forEach((row, i) => {
+    const indexSpan = row.querySelector(".row-index");
+    if (indexSpan) {
+      indexSpan.innerHTML = `<strong>${i + 1}.</strong>`;
+    }
+  });
+}
+
+// ฟังก์ชันสลับการโชว์ช่องกรอกรหัส
+function togglePasscodeField() {
+  const area = document.getElementById('passcodeArea');
+  area.style.display = area.style.display === 'none' ? 'flex' : 'none';
+}
+
+// ฟังก์ชันเช็ครหัสเบื้องต้นบนหน้าจอ (ก่อนส่งไปเช็คใน Code.gs)
+function unlockAdmin() {
+  const code = document.getElementById('adminPasscode').value;
+  if (!code) return alert("กรุณากรอกรหัสผ่าน");
+
+  // ส่งไปเช็คใน Code.gs ว่ารหัสตรงกับที่สุ่มไว้ในอีเมลไหม
+  google.script.run.withSuccessHandler(function(isValid) {
+    if (isValid) {
+      document.getElementById('passcodeArea').style.display = 'none';
+      document.getElementById('btnCloseSurvey').style.display = 'block';
+      document.getElementById('lockIcon').innerText = '🔓';
+      alert("ปลดล็อกสิทธิ์ผู้สร้างเรียบร้อย");
+    } else {
+      alert("รหัสผ่านไม่ถูกต้อง กรุณาเช็คในอีเมลของคุณ");
+    }
+  }).checkAdminPasscode(midFromUrl, code); // เราจะไปสร้างฟังก์ชันนี้ใน Code.gs ต่อไป
+}
+
+// ฟังก์ชันกดปิดถาวร
+function finalCloseSurvey() {
+  if (confirm("ยืนยันการปิดรับแบบสำรวจ? เมื่อปิดแล้วจะไม่สามารถแก้ไขข้อมูลได้อีก")) {
+    google.script.run.withSuccessHandler(function() {
+      location.reload(); // รีโหลดหน้าเพื่อแสดงสถานะปิด
+    }).executeCloseSurvey(midFromUrl);
+  }
+}
+
+function toggleFeedback() {
+  const box = document.getElementById('feedbackBox');
+  box.style.display = box.style.display === 'none' ? 'inline-block' : 'none';
+}
+
+function submitFeedback() {
+  const comment = document.getElementById('commentText').value;
+  const btn = event.target;
+  
+  btn.disabled = true;
+  btn.innerText = "...";
+
+  google.script.run
+    .withSuccessHandler(msg => {
+      alert(msg);
+      document.getElementById('commentText').value = "";
+      document.getElementById('feedbackBox').style.display = 'none';
+      btn.disabled = false;
+      btn.innerText = "ส่ง";
+    })
+    .withFailureHandler(err => {
+      alert(err.message);
+      btn.disabled = false;
+      btn.innerText = "ส่ง";
+    })
+    .saveFeedback(comment);
+}
+</script>
+</body>
+</html>
